@@ -1,7 +1,3 @@
-# travelbalance
-
-A new Flutter project.
-
 # TravelBalance – Code-Dokumentation
 
 > Reisekosten einfach aufteilen · Flutter-App · Stand: September 2026
