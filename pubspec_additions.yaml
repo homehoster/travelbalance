@@ -12,7 +12,7 @@ dependencies:
 # Also add to pubspec.yaml flutter section:
 flutter:
   assets:
-    - assets/icon/app_icon_1024.png
+    - assets/icon/app_icon.png
 
 # ====================================================
 # Android: android/app/src/main/AndroidManifest.xml
