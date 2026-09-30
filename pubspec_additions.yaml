@@ -1,0 +1,28 @@
+# Add these to your pubspec.yaml under dependencies:
+dependencies:
+  provider: ^6.1.2
+  uuid: ^4.4.2
+  intl: ^0.19.0
+  shared_preferences: ^2.3.2
+  http: ^1.2.2
+  file_picker: ^8.1.2
+  path_provider: ^2.1.4
+  path: ^1.9.1
+
+# Also add to pubspec.yaml flutter section:
+flutter:
+  assets:
+    - assets/icon/app_icon_1024.png
+
+# ====================================================
+# Android: android/app/src/main/AndroidManifest.xml
+# Add inside <manifest> tag:
+# <uses-permission android:name="android.permission.INTERNET"/>
+# <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+# <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+#     android:maxSdkVersion="28"/>
+# ====================================================
+# iOS: ios/Runner/Info.plist - file_picker handles permissions automatically
+# ====================================================
+# App icon: copy the PNG to assets/icon/app_icon.png
+# Use flutter_launcher_icons package to set app icon.
