@@ -81,7 +81,10 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
       }
       for (final ben in exp.beneficiaries) {
         _benEnabled[ben.personId] = true;
-        _benCtrls[ben.personId]?.text = _toInput(ben.amount);
+        final orig = exp.exchangeRateToEur > 0
+            ? ben.amount / exp.exchangeRateToEur
+            : ben.amount;
+        _benCtrls[ben.personId]?.text = _toInput(orig);
       }
       for (final p in _participants) {
         if (exp.beneficiaries.every((b) => b.personId != p.id)) {
@@ -127,6 +130,11 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
 
   double get _rate => double.tryParse(_rateCtrl.text) ?? 1.0;
 
+  // Summe der manuellen Eingaben in Originalwährung
+  double get _totalBenOriginal => _benCtrls.entries
+            .where((e) => _benEnabled[e.key] == true)
+            .fold(0.0, (s, e) => s + _parseInput(e.value.text));
+
   double get _totalPayersEur {
     double sum = 0;
     for (final e in _payerCtrls.entries) {
@@ -152,12 +160,12 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
       final n = _participants.where((p) => _benEnabled[p.id] == true).length;
       return n == 0 ? 0 : _totalPayersEur;
     }
-    return _benCtrls.entries
-        .where((e) => _benEnabled[e.key] == true)
-        .fold(0.0, (s, e) => s + _parseInput(e.value.text));
+    return _totalBenOriginal * _rate; // ← Umrechnung in EUR
   }
 
   double get _benDiff => _totalPayersEur - _totalBenEur;
+  double get _benDiffOriginal => _totalPayersOriginal - _totalBenOriginal;
+  
 
   List<BeneficiaryEntry> _buildBeneficiaries() {
     final enabledBens = _participants
@@ -175,7 +183,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
           .map(
             (p) => BeneficiaryEntry(
               personId: p.id,
-              amount: _parseInput(_benCtrls[p.id]?.text ?? '0'),
+              amount: _parseInput(_benCtrls[p.id]?.text ?? '0') * _rate,
             ),
           )
           .toList();
@@ -520,6 +528,8 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                         diff: _benDiff,
                         currency: _currency,
                         totalOriginal: _totalPayersOriginal,
+                        allocatedOriginal: _totalBenOriginal,
+                        diffOriginal: _benDiffOriginal,
                       ),
                     ],
                   ],
@@ -875,18 +885,24 @@ class _DiffRow extends StatelessWidget {
   final double diff;
   final String currency;
   final double totalOriginal;
+  final double allocatedOriginal;
+  final double diffOriginal;
   const _DiffRow({
     required this.total,
     required this.allocated,
     required this.diff,
     required this.currency,
     required this.totalOriginal,
+    required this.allocatedOriginal,
+    required this.diffOriginal,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isOk = diff.abs() < 0.01;
-    final color = isOk ? Colors.green : (diff < 0 ? Colors.red : Colors.orange);
+    final isOk = diffOriginal.abs() < 0.01;
+    final color =
+        isOk ? Colors.green : (diffOriginal < 0 ? Colors.red : Colors.orange);
+    final foreign = currency != 'EUR';
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -895,21 +911,24 @@ class _DiffRow extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _InfoRow('Gesamt Ausgabe:', fmtEur(total)),
-          if (currency != 'EUR')
-            _InfoRow('  (in $currency):', fmtAmt(totalOriginal, currency)),
-          _InfoRow('Aufgeteilt:', fmtEur(allocated)),
+          _InfoRow('Gesamt Ausgabe:', fmtAmt(totalOriginal, currency)),
+          if (foreign) _InfoRow('  (in EUR):', fmtEur(total)),
+          _InfoRow('Aufgeteilt:', fmtAmt(allocatedOriginal, currency)),
+          if (foreign) _InfoRow('  (in EUR):', fmtEur(allocated)),
           _InfoRow(
             'Differenz:',
-            '${diff >= 0 ? '+' : ''}${fmtEur(diff)}',
+            '${diffOriginal >= 0 ? '+' : ''}${fmtAmt(diffOriginal, currency)}',
             valueColor: color,
             bold: true,
           ),
+          if (foreign && !isOk)
+            _InfoRow('  (in EUR):',
+                '${diff >= 0 ? '+' : ''}${fmtEur(diff)}'),
           if (!isOk)
             Text(
-              diff > 0
-                  ? 'Noch ${fmtEur(diff)} nicht zugewiesen'
-                  : '${fmtEur(-diff)} zu viel zugewiesen',
+              diffOriginal > 0
+                  ? 'Noch ${fmtAmt(diffOriginal, currency)} nicht zugewiesen'
+                  : '${fmtAmt(-diffOriginal, currency)} zu viel zugewiesen',
               style: TextStyle(fontSize: 11, color: color),
             ),
         ],
