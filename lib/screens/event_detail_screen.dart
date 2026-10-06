@@ -678,8 +678,9 @@ class _BalancesTabState extends State<_BalancesTab> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Von
+                // "Von (Zahler)"
                 DropdownButtonFormField<String>(
+                  key: ValueKey('from_$fromId'),
                   value: fromId,
                   decoration: const InputDecoration(
                     labelText: 'Von (Zahler)',
@@ -693,12 +694,17 @@ class _BalancesTabState extends State<_BalancesTab> {
                       )
                       .toList(),
                   onChanged: (v) {
-                    if (v != null && v != toId) setDlg(() => fromId = v);
-                  },
+                  if (v == null) return;
+                  setDlg(() {
+                    if (v == toId) toId = fromId; // tauschen statt blockieren
+                    fromId = v;
+                  });
+                },
                 ),
                 const SizedBox(height: 12),
-                // An
+                // "An (Empfänger)"
                 DropdownButtonFormField<String>(
+                  key: ValueKey('to_$toId'),
                   value: toId,
                   decoration: const InputDecoration(
                     labelText: 'An (Empfänger)',
@@ -712,7 +718,11 @@ class _BalancesTabState extends State<_BalancesTab> {
                       )
                       .toList(),
                   onChanged: (v) {
-                    if (v != null && v != fromId) setDlg(() => toId = v);
+                    if (v == null) return;
+                    setDlg(() {
+                      if (v == fromId) fromId = toId; // tauschen statt blockieren 
+                      toId = v;
+                    });
                   },
                 ),
                 const SizedBox(height: 12),
