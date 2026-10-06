@@ -1,16 +1,17 @@
 import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
+// import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/models.dart';
 import '../services/storage_service.dart';
+import '../utils/messenger.dart';
 
 class AppProvider extends ChangeNotifier {
   List<TravelEvent> events = [];
   String? exportDirectory;
   bool _loading = false;
+  String? exportError;
   bool get loading => _loading;
 
   static const _prefExportDir = 'exportDirectory';
@@ -44,14 +45,39 @@ class AppProvider extends ChangeNotifier {
     if (export && exportDirectory != null) {
       try {
         await StorageService.rotateAndSave(exportDirectory!, json);
+        exportError = null;
       } catch (e) {
+        exportError = e.toString();
         debugPrint('Export error: $e');
+        messengerKey.currentState
+        ?..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Export fehlgeschlagen: $exportError'),
+            backgroundColor: Colors.red[700],
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Berechtigen',
+              textColor: Colors.white,
+              onPressed: () async {
+                if (await StorageService.requestPermission()) {
+                  try {
+                    await exportNow();
+                  } catch (_) {}
+                }
+              },
+            ),
+          ),
+        );
       }
     }
     notifyListeners();
   }
 
-  Future<void> exportNow() async => _persist(export: true);
+  Future<void> exportNow() async {
+      await _persist(export: true);
+      if (exportError != null) throw Exception(exportError);
+    }
 
   Future<void> setExportDirectory(String dir) async {
     exportDirectory = dir;

@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/event_menu_button.dart';
+import '../services/storage_service.dart';
 import 'add_edit_event_screen.dart';
 import 'event_detail_screen.dart';
 
@@ -28,7 +29,26 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       drawer: const AppDrawer(),
-      body: prov.loading
+      body: 
+        Column(
+        children: [
+          if (prov.exportError != null)
+            MaterialBanner(
+              content: Text(prov.exportError!),
+              leading: const Icon(Icons.warning_amber, color: Colors.orange),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    if (await StorageService.requestPermission()) {
+                      await prov.exportNow();
+                    }
+                  },
+                  child: const Text('Berechtigen'),
+                ),
+              ],
+            ),
+          Expanded(child:
+          prov.loading
           ? const Center(child: CircularProgressIndicator())
           : prov.events.isEmpty
               ? _EmptyState(
@@ -47,6 +67,10 @@ class HomeScreen extends StatelessWidget {
                     );
                   },
                 ),
+
+                ),
+  ],
+),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(context,
           MaterialPageRoute(builder: (_) => const AddEditEventScreen())),

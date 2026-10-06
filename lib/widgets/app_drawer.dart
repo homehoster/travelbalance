@@ -86,7 +86,7 @@ class AppDrawer extends StatelessWidget {
                       const SizedBox(width: 6),
                       ListTile(
                         leading: const Icon(Icons.home_outlined),
-                        title: const Text('Startseite'),
+                        title: const Text('Meine Reisen'),
                         onTap: () {
                           Navigator.pop(context); // Drawer schließen
                           Navigator.of(context).popUntil((r) => r.isFirst);

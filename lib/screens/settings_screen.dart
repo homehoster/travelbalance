@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
+import '../services/storage_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -42,6 +43,16 @@ class SettingsScreen extends StatelessWidget {
                       icon: const Icon(Icons.folder_open),
                       label: const Text('Speicherort wählen'),
                       onPressed: () async {
+                        if (!await StorageService.requestPermission()) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Bitte „Zugriff auf alle Dateien" erlauben'),
+                              ),
+                            );
+                          }
+                          return;
+                        }
                         final dir = await FilePicker.getDirectoryPath(
                           dialogTitle: 'Exportordner auswählen',
                         );
