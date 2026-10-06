@@ -5,6 +5,7 @@ import '../providers/app_provider.dart';
 import '../screens/event_detail_screen.dart';
 import '../screens/add_edit_event_screen.dart';
 import '../screens/settings_screen.dart';
+import '../widgets/event_menu_button.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -83,6 +84,15 @@ class AppDrawer extends StatelessWidget {
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 6),
+                      ListTile(
+                        leading: const Icon(Icons.home_outlined),
+                        title: const Text('Startseite'),
+                        onTap: () {
+                          Navigator.pop(context); // Drawer schließen
+                          Navigator.of(context).popUntil((r) => r.isFirst);
+                        },
+                      ),
+                      const Divider(height: 1),
                       Text(
                         'Meine Reisen',
                         style: TextStyle(
@@ -146,6 +156,11 @@ class AppDrawer extends StatelessWidget {
                         '${ev.participants.length} Personen · '
                         '${ev.expenses.length} Ausgaben',
                         style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      ),
+                      trailing: EventMenuButton(
+                        event: ev,
+                        closeDrawerOnEdit: true,
+                        iconSize: 20,
                       ),
                       onTap: () {
                         Navigator.pop(context);

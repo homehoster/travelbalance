@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/event_menu_button.dart';
 import 'add_edit_event_screen.dart';
 import 'event_detail_screen.dart';
 
@@ -43,9 +44,6 @@ class HomeScreen extends StatelessWidget {
                       event: ev,
                       onTap: () => Navigator.push(ctx,
                         MaterialPageRoute(builder: (_) => EventDetailScreen(eventId: ev.id))),
-                      onEdit: () => Navigator.push(ctx,
-                        MaterialPageRoute(builder: (_) => AddEditEventScreen(eventId: ev.id))),
-                      onDelete: () => _confirmDelete(ctx, prov, ev),
                     );
                   },
                 ),
@@ -57,36 +55,14 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-
-  Future<void> _confirmDelete(BuildContext ctx, AppProvider prov, TravelEvent ev) async {
-    final ok = await showDialog<bool>(
-      context: ctx,
-      builder: (context) => AlertDialog(
-        title: const Text('Reise löschen?'),
-        content: Text('"${ev.name}" und alle Ausgaben werden gelöscht.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Löschen'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) await prov.deleteEvent(ev.id);
-  }
 }
 
 class _EventCard extends StatelessWidget {
   final TravelEvent event;
   final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   const _EventCard({
     required this.event, required this.onTap,
-    required this.onEdit, required this.onDelete,
   });
 
   @override
@@ -112,17 +88,7 @@ class _EventCard extends StatelessWidget {
                     child: Text(event.name,
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
-                  PopupMenuButton<String>(
-                    onSelected: (v) {
-                      if (v == 'edit') onEdit();
-                      if (v == 'delete') onDelete();
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                      const PopupMenuItem(value: 'delete',
-                        child: Text('Löschen', style: TextStyle(color: Colors.red))),
-                    ],
-                  ),
+                  EventMenuButton(event: event),
                 ],
               ),
               const SizedBox(height: 6),
