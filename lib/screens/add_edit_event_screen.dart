@@ -227,7 +227,7 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   radius: 16,
-                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   child: Text(entry.value.name[0].toUpperCase(),
                     style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 13)),
                 ),

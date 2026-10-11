@@ -7,6 +7,7 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../utils/calculations.dart';
 import '../widgets/app_drawer.dart';
+import '../services/pdf_export_service.dart';
 import 'add_edit_expense_screen.dart';
 import 'add_edit_event_screen.dart';
 
@@ -22,6 +23,8 @@ class _EventDetailScreenState extends State<EventDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
   int _tabIndex = 0;
+  DateTime? _statFrom; // null = erste Ausgabe
+  DateTime? _statTo;   // null = letzte Ausgabe
 
   @override
   void initState() {
@@ -53,6 +56,21 @@ class _EventDetailScreenState extends State<EventDetailScreen>
         title: Text(ev.name),
         actions: [
           IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Als PDF teilen',
+            onPressed: () async {
+              try {
+                await PdfExportService.shareEventPdf(ev, from: _statFrom, to: _statTo);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('PDF-Fehler: $e')),
+                  );
+                }
+              }
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Bearbeiten',
             onPressed: () => Navigator.push(
@@ -80,7 +98,15 @@ class _EventDetailScreenState extends State<EventDetailScreen>
         controller: _tabCtrl,
         children: [
           _ExpensesTab(event: ev, eventId: widget.eventId),
-          _StatisticsTab(event: ev),
+          _StatisticsTab(
+            event: ev,
+            from: _statFrom,
+            to: _statTo,
+            onRangeChanged: (f, t) => setState(() {
+              _statFrom = f;
+              _statTo = t;
+            }),
+          ),
           _BalancesTab(event: ev, eventId: widget.eventId),
         ],
       ),
@@ -296,7 +322,7 @@ class _CategoryBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: _color.withOpacity(0.15),
+        color: _color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -316,41 +342,41 @@ class _CategoryBadge extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 class _StatisticsTab extends StatefulWidget {
   final TravelEvent event;
-  const _StatisticsTab({required this.event});
+  final DateTime? from;
+  final DateTime? to;
+  final void Function(DateTime? from, DateTime? to) onRangeChanged;
+  const _StatisticsTab({
+    required this.event,
+    required this.from,
+    required this.to,
+    required this.onRangeChanged,
+  });
 
   @override
   State<_StatisticsTab> createState() => _StatisticsTabState();
 }
 
 class _StatisticsTabState extends State<_StatisticsTab> {
-  late DateTime _fromDate;
-  late DateTime _toDate;
+  DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
-  // Erste / letzte Ausgabe ermitteln
-  void _initRange() {
-    if (widget.event.expenses.isNotEmpty) {
-      final dates = widget.event.expenses.map((e) => e.date).toList()..sort();
-      _fromDate = DateTime(
-        dates.first.year,
-        dates.first.month,
-        dates.first.day,
-      );
-      _toDate = DateTime(dates.last.year, dates.last.month, dates.last.day);
-    } else {
-      _fromDate = widget.event.startDate;
-      _toDate = widget.event.endDate;
-    }
+  // Standard: erste / letzte Ausgabe (bzw. Reisezeitraum ohne Ausgaben)
+  DateTime get _defaultFrom {
+    if (widget.event.expenses.isEmpty) return widget.event.startDate;
+    return _day((widget.event.expenses.map((e) => e.date).toList()..sort()).first);
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _initRange();
+  DateTime get _defaultTo {
+    if (widget.event.expenses.isEmpty) return widget.event.endDate;
+    return _day((widget.event.expenses.map((e) => e.date).toList()..sort()).last);
   }
 
-  List<Expense> get _filtered => widget.event.expenses
-      .where((e) => !e.date.isBefore(_fromDate) && !e.date.isAfter(_toDate))
-      .toList();
+  DateTime get _fromDate => widget.from ?? _defaultFrom;
+  DateTime get _toDate => widget.to ?? _defaultTo;
+
+  List<Expense> get _filtered => widget.event.expenses.where((e) {
+      final d = _day(e.date);
+      return !d.isBefore(_day(_fromDate)) && !d.isAfter(_day(_toDate));
+    }).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -360,7 +386,9 @@ class _StatisticsTabState extends State<_StatisticsTab> {
 
     // Ausgaben je Person (Begünstigte)
     final personOwed = <String, double>{};
-    for (final p in widget.event.participants) personOwed[p.id] = 0;
+    for (final p in widget.event.participants) {
+      personOwed[p.id] = 0;
+    }
     for (final exp in expenses) {
       for (final ben in exp.beneficiaries) {
         personOwed[ben.personId] = (personOwed[ben.personId] ?? 0) + ben.amount;
@@ -424,7 +452,8 @@ class _StatisticsTabState extends State<_StatisticsTab> {
                               lastDate: _toDate,
                               locale: const Locale('de', 'DE'),
                             );
-                            if (d != null) setState(() => _fromDate = d);
+                            // "Von"-Picker
+                            if (d != null) widget.onRangeChanged(d, widget.to);   
                           },
                           child: Text(
                             'Von: ${fmt.format(_fromDate)}',
@@ -443,7 +472,8 @@ class _StatisticsTabState extends State<_StatisticsTab> {
                               lastDate: lastExpDate,
                               locale: const Locale('de', 'DE'),
                             );
-                            if (d != null) setState(() => _toDate = d);
+                            // "Bis"-Picker
+                            if (d != null) widget.onRangeChanged(widget.from, d);
                           },
                           child: Text(
                             'Bis: ${fmt.format(_toDate)}',
@@ -454,7 +484,7 @@ class _StatisticsTabState extends State<_StatisticsTab> {
                       IconButton(
                         icon: const Icon(Icons.refresh, size: 18),
                         tooltip: 'Zurücksetzen',
-                        onPressed: () => setState(_initRange),
+                        onPressed: () => widget.onRangeChanged(null, null),
                       ),
                     ],
                   ),
@@ -976,7 +1006,7 @@ class _BalanceCard extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: color.withOpacity(0.15),
+              backgroundColor: color.withValues(alpha: 0.15),
               child: Text(
                 balance.personName[0].toUpperCase(),
                 style: TextStyle(color: color, fontWeight: FontWeight.bold),

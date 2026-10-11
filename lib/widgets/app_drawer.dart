@@ -25,7 +25,7 @@ class AppDrawer extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: [
                   Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
                 ],
               ),
             ),
@@ -137,7 +137,7 @@ class AppDrawer extends StatelessWidget {
                       leading: CircleAvatar(
                         radius: 14,
                         backgroundColor: Theme.of(context).colorScheme.primary
-                            .withOpacity(0.15),
+                            .withValues(alpha: 0.15),
                         child: Text(
                           ev.name[0].toUpperCase(),
                           style: TextStyle(
