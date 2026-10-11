@@ -6,6 +6,7 @@ import '../providers/app_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/event_menu_button.dart';
 import '../services/storage_service.dart';
+import '../utils/calculations.dart';
 import 'add_edit_event_screen.dart';
 import 'event_detail_screen.dart';
 
@@ -15,11 +16,30 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
+    final sorted = prov.sortedEvents;   // einmal sortieren, hier oben
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('TravelBalance'),
         actions: [
+          PopupMenuButton<EventSortMode>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Sortieren',
+            initialValue: prov.sortMode,
+            onSelected: prov.setSortMode,
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                  value: EventSortMode.dateAsc,
+                  child: Text('Datum aufsteigend')),
+              PopupMenuItem(
+                  value: EventSortMode.dateDesc,
+                  child: Text('Datum absteigend')),
+              PopupMenuItem(
+                  value: EventSortMode.nameAsc, child: Text('Name A–Z')),
+              PopupMenuItem(
+                  value: EventSortMode.nameDesc, child: Text('Name Z–A')),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Neue Reise',
@@ -57,17 +77,20 @@ class HomeScreen extends StatelessWidget {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  itemCount: prov.events.length,
+                  itemCount: sorted.length,
                   itemBuilder: (ctx, i) {
-                    final ev = prov.events[i];
+                    final ev = sorted[i];
                     return _EventCard(
                       event: ev,
-                      onTap: () => Navigator.push(ctx,
-                        MaterialPageRoute(builder: (_) => EventDetailScreen(eventId: ev.id))),
+                      onTap: () => Navigator.push(
+                        ctx,
+                        MaterialPageRoute(
+                          builder: (_) => EventDetailScreen(eventId: ev.id),
+                        ),
+                      ),
                     );
                   },
                 ),
-
                 ),
   ],
 ),
@@ -93,7 +116,7 @@ class _EventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fmt = DateFormat('dd.MM.yyyy');
     final total = event.expenses.fold(0.0, (s, e) => s + e.totalEur);
-    final color = Theme.of(context).colorScheme.primary;
+    final color = Theme.of(context).colorScheme.primary;   
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -132,7 +155,7 @@ class _EventCard extends StatelessWidget {
                   _Chip(Icons.receipt_long_outlined, '${event.expenses.length} Ausgaben', color),
                   const Spacer(),
                   Text(
-                    '${total.toStringAsFixed(2)} €',
+                    fmtEur(total),   // statt '${total.toStringAsFixed(2)} €'
                     style: TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold, color: color),
                   ),

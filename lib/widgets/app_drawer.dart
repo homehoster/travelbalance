@@ -73,8 +73,13 @@ class AppDrawer extends StatelessWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                // Abschnittsheader
-                Padding(
+                // Abschnittsheader "Meine Reisen"
+                InkWell(
+                onTap: () {
+                  Navigator.pop(context); // Drawer schließen
+                  Navigator.of(context).popUntil((r) => r.isFirst);
+                },
+                child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
                   child: Row(
                     children: [
@@ -84,15 +89,6 @@ class AppDrawer extends StatelessWidget {
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 6),
-                      ListTile(
-                        leading: const Icon(Icons.home_outlined),
-                        title: const Text('Meine Reisen'),
-                        onTap: () {
-                          Navigator.pop(context); // Drawer schließen
-                          Navigator.of(context).popUntil((r) => r.isFirst);
-                        },
-                      ),
-                      const Divider(height: 1),
                       Text(
                         'Meine Reisen',
                         style: TextStyle(
@@ -102,7 +98,6 @@ class AppDrawer extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      // Neue Reise
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline, size: 20),
                         tooltip: 'Neue Reise',
@@ -120,6 +115,7 @@ class AppDrawer extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
                 const Divider(height: 1),
 
                 if (prov.events.isEmpty)
@@ -131,7 +127,7 @@ class AppDrawer extends StatelessWidget {
                     ),
                   )
                 else
-                  ...prov.events.map(
+                  ...prov.sortedEvents.map(   // statt prov.events.map
                     (ev) => ListTile(
                       dense: true,
                       leading: CircleAvatar(

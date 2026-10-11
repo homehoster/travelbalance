@@ -7,16 +7,20 @@ import '../models/models.dart';
 import '../services/storage_service.dart';
 import '../utils/messenger.dart';
 
+enum EventSortMode { dateAsc, dateDesc, nameAsc, nameDesc }
+
 class AppProvider extends ChangeNotifier {
   List<TravelEvent> events = [];
   String? exportDirectory;
   bool _loading = false;
   String? exportError;
   bool get loading => _loading;
+  static const _prefSort = 'eventSortMode';
+  EventSortMode sortMode = EventSortMode.dateDesc;
 
   static const _prefExportDir = 'exportDirectory';
   static const _prefData = 'travelbalance_data';
-
+  
   Future<void> loadData() async {
     _loading = true;
     notifyListeners();
@@ -24,6 +28,11 @@ class AppProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       exportDirectory = prefs.getString(_prefExportDir);
       exportDirectory ??= (await getApplicationDocumentsDirectory()).path;
+      final s = prefs.getString(_prefSort);
+      sortMode = EventSortMode.values.firstWhere(
+        (m) => m.name == s,
+        orElse: () => EventSortMode.dateDesc,
+      );
       final raw = prefs.getString(_prefData);
       if (raw != null) {
         final list = jsonDecode(raw) as List;
@@ -37,6 +46,7 @@ class AppProvider extends ChangeNotifier {
     _loading = false;
     notifyListeners();
   }
+
 
   Future<void> _persist({bool export = true}) async {
     final prefs = await SharedPreferences.getInstance();
@@ -165,4 +175,30 @@ class AppProvider extends ChangeNotifier {
       return false;
     }
   }
+
+  // ---- Sort Mode ----
+  Future<void> setSortMode(EventSortMode mode) async {
+    sortMode = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefSort, mode.name);
+    notifyListeners();
+  }
+
+  List<TravelEvent> get sortedEvents {
+    final list = [...events];
+    switch (sortMode) {
+      case EventSortMode.dateAsc:
+        list.sort((a, b) => a.startDate.compareTo(b.startDate));
+      case EventSortMode.dateDesc:
+        list.sort((a, b) => b.startDate.compareTo(a.startDate));
+      case EventSortMode.nameAsc:
+        list.sort((a, b) =>
+            a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      case EventSortMode.nameDesc:
+        list.sort((a, b) =>
+            b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+    }
+    return list;
+  }
+
 }
