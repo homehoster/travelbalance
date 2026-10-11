@@ -108,8 +108,12 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
     _descCtrl.dispose();
     _noteCtrl.dispose();
     _rateCtrl.dispose();
-    for (final c in _payerCtrls.values) c.dispose();
-    for (final c in _benCtrls.values) c.dispose();
+    for (final c in _payerCtrls.values) {
+      c.dispose();
+    }
+    for (final c in _benCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 

@@ -397,7 +397,9 @@ class _StatisticsTabState extends State<_StatisticsTab> {
 
     // Bezahlt je Person (Zahler)
     final personPaid = <String, double>{};
-    for (final p in widget.event.participants) personPaid[p.id] = 0;
+    for (final p in widget.event.participants) {
+      personPaid[p.id] = 0;
+    }
     for (final exp in expenses) {
       for (final payer in exp.payers) {
         personPaid[payer.personId] =
