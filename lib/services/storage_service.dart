@@ -1,119 +1,168 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
+ 
 import 'package:intl/intl.dart';
-import 'package:path/path.dart' as p;
-import 'package:permission_handler/permission_handler.dart';
-import '../services/log.dart';
+import 'package:saf_stream/saf_stream.dart';
+import 'package:saf_util/saf_util.dart';
+ 
 import '../services/formatjson.dart';
-
-class StoragePermissionException implements Exception {
+import '../services/log.dart';
+ 
+/// Der gewählte Sicherungsordner ist ungültig, gelöscht oder nicht mehr
+/// zugreifbar. [message] kann direkt dem Nutzer angezeigt werden.
+class StorageFolderException implements Exception {
+  final String message;
+  StorageFolderException(this.message);
   @override
-  String toString() => 'Berechtigung „Zugriff auf alle Dateien" fehlt';
+  String toString() => message;
 }
-
+ 
 class StorageService {
   static const _baseName = 'travelbalance_export';
+  static const _mainName = '$_baseName.json';
   static const _maxBackups = 5;
-
-  // Beginn Prüfung Speicherberechtigung
-  static bool _needsPermission(String dir) =>
-      Platform.isAndroid && dir.startsWith('/storage/');
-
-  static Future<bool> hasPermission() async =>
-      !Platform.isAndroid || await Permission.manageExternalStorage.isGranted;
-
-  static Future<bool> requestPermission() async {
-    if (!Platform.isAndroid) return true;
-    return (await Permission.manageExternalStorage.request()).isGranted;
+ 
+  static final _util = SafUtil();
+  static final _stream = SafStream();
+ 
+  static final _dateFmt = DateFormat('yyyy_MM_dd');
+  static final _backupRe = RegExp(
+    '^${RegExp.escape(_baseName)}_(\\d{4}_\\d{2}_\\d{2})(?:_(\\d+))?\\.json\$',
+  );
+ 
+  // ── Ordnerwahl ────────────────────────────────────────────────────────────
+ 
+  /// Öffnet den Android-Ordnerdialog (SAF) mit dauerhaftem Schreibrecht.
+  /// Gibt die content://-URI zurück oder null bei Abbruch.
+  static Future<String?> pickFolder() async {
+    final dir = await _util.pickDirectory(
+      writePermission: true,
+      persistablePermission: true,
+    );
+    return dir?.uri;
   }
-  // Ende Prüfung Speicherberechtigung
-  
-  /// Writes [jsonStr] to [dir]/travelbalance_export.json,
-  /// rotating up to 5 backup copies (oldest deleted).
-  static Future<void> rotateAndSave(String dir, String jsonStr) async {
-    final base = p.join(dir, '$_baseName.json');
-
-    await LogService.log('=== StorageService.rotateAndSave ===');
-    await LogService.log('Zielordner: $dir');
-    await LogService.log('Dateipfad: $base');
-
-    if (_needsPermission(dir) && !await hasPermission()) {
-      await LogService.log('FEHLER: Berechtigung für $dir fehlt');
-      throw StoragePermissionException();
-    }
-
+ 
+  /// Lesbare Darstellung der URI, z. B. "primary:Download/TravelBalance".
+  static String displayPath(String? uri) {
+    if (uri == null) return 'Nicht gesetzt';
     try {
-      final mainFile = File(base);
-
-      // Rotate backups: delete _5, shift _4->_5, _3->_4 ... _1->_2
-      if (await mainFile.exists()) {
-        await mainFile.copy(await _newBackupPath(dir));
+      final decoded = Uri.decodeComponent(uri);
+      final i = decoded.indexOf('/tree/');
+      return i >= 0 ? decoded.substring(i + 6) : decoded;
+    } catch (_) {
+      return uri;
+    }
+  }
+ 
+  /// Prüft, ob der Ordner noch existiert und beschreibbar ist.
+  /// Wirft [StorageFolderException], wenn nicht.
+  static Future<void> ensureFolder(String uri) async {
+    if (!uri.startsWith('content://')) {
+      throw StorageFolderException(
+        'Der Sicherungsordner ist ungültig. Bitte neu wählen.',
+      );
+    }
+    var hasPerm = false;
+    try {
+      hasPerm = await _util.hasPersistedPermission(
+        uri,
+        checkRead: true,
+        checkWrite: true,
+      );
+    } catch (_) {}
+    if (!hasPerm) {
+      throw StorageFolderException(
+        'Kein Zugriff mehr auf den Sicherungsordner. '
+        'Er wurde möglicherweise gelöscht oder verschoben.',
+      );
+    }
+    try {
+      await _util.list(uri); // schlägt fehl, wenn der Ordner nicht existiert
+    } catch (_) {
+      throw StorageFolderException(
+        'Der Sicherungsordner existiert nicht mehr. Bitte neu wählen.',
+      );
+    }
+  }
+ 
+  // ── Speichern mit Rotation ────────────────────────────────────────────────
+ 
+  /// Schreibt [jsonStr] nach [dirUri]/travelbalance_export.json.
+  /// Vorher wird die bestehende Datei als datierte Kopie gesichert,
+  /// es bleiben maximal 5 Kopien erhalten (älteste wird gelöscht).
+  static Future<void> rotateAndSave(String dirUri, String jsonStr) async {
+    await LogService.log('=== StorageService.rotateAndSave ===');
+    await LogService.log('Zielordner: ${displayPath(dirUri)}');
+ 
+    try {
+      await ensureFolder(dirUri);
+ 
+      final entries = await _util.list(dirUri);
+      final names = entries.map((e) => e.name).toSet();
+ 
+      // Bestehende Hauptdatei als Backup sichern
+      String? mainUri;
+      for (final e in entries) {
+        if (!e.isDir && e.name == _mainName) mainUri = e.uri;
       }
-
-      // Nur die neuesten _maxBackups behalten, älteste löschen
-      final backups = await _sortedBackups(dir);
+      if (mainUri != null) {
+        final old = await _stream.readFileBytes(mainUri);
+        await _stream.writeFileBytes(
+          dirUri,
+          _newBackupName(names),
+          'application/json',
+          old,
+        );
+      }
+ 
+      // Nur die neuesten _maxBackups behalten
+      final backups = await _sortedBackupUris(dirUri);
       final excess = backups.length - _maxBackups;
       for (var i = 0; i < excess; i++) {
-        await backups[i].delete();
+        await _util.delete(backups[i], false);
       }
-
-      // Write new main
-      await mainFile.writeAsString(formatJson(jsonStr), encoding: utf8);
-      await LogService.log(
-        'JSON erfolgreich geschrieben: ${jsonStr.length} Zeichen',
+ 
+      // Hauptdatei überschreiben
+      await _stream.writeFileBytes(
+        dirUri,
+        _mainName,
+        'application/json',
+        Uint8List.fromList(utf8.encode(formatJson(jsonStr))),
+        overwrite: true,
       );
-      await LogService.log(
-        jsonStr,
-        fileName: 'travelbalance_export.json',
-        isJsonLog: true,
-      );
+      await LogService.log('JSON geschrieben: ${jsonStr.length} Zeichen');
     } catch (e, stack) {
       await LogService.log('FEHLER beim Schreiben: $e');
-      await LogService.log('StackTrace: $stack');
+      if (e is! StorageFolderException) {
+        await LogService.log('StackTrace: $stack');
+      }
       rethrow;
     }
   }
-
-  static final _dateFmt = DateFormat('yyyy_MM_dd');
-
-  static final _backupRe = RegExp(
-    '^${RegExp.escape(_baseName)}_(\\d{4}_\\d{2}_\\d{2})(?:_(\\d+))?\\.json\$',
-  );  
-
-  /// Freier Backup-Name: ..._2026_10_06.json, sonst ..._2026_10_06_1.json, _2 ...
-  static Future<String> _newBackupPath(String dir) async {
+ 
+  /// Freier Backup-Name: ..._2026_10_06.json, sonst ..._2026_10_06_1.json ...
+  static String _newBackupName(Set<String> existing) {
     final today = _dateFmt.format(DateTime.now());
-    var path = p.join(dir, '${_baseName}_$today.json');
+    var name = '${_baseName}_$today.json';
     var i = 1;
-    while (await File(path).exists()) {
-      path = p.join(dir, '${_baseName}_${today}_$i.json');
+    while (existing.contains(name)) {
+      name = '${_baseName}_${today}_$i.json';
       i++;
     }
-    return path;
+    return name;
   }
-
-  /// Alle Backups, älteste zuerst (sortiert nach Datum, dann Index).
-  static Future<List<File>> _sortedBackups(String dir) async {
-    final d = Directory(dir);
-    if (!await d.exists()) return [];
-    final entries = <MapEntry<String, File>>[];
-    await for (final e in d.list()) {
-      if (e is! File) continue;
-      final m = _backupRe.firstMatch(p.basename(e.path));
+ 
+  /// URIs aller Backups, älteste zuerst (Datum, dann Index).
+  static Future<List<String>> _sortedBackupUris(String dirUri) async {
+    final items = <(String, String)>[]; // (Sortierschlüssel, URI)
+    for (final e in await _util.list(dirUri)) {
+      if (e.isDir) continue;
+      final m = _backupRe.firstMatch(e.name);
       if (m == null) continue;
       final idx = int.parse(m.group(2) ?? '0').toString().padLeft(6, '0');
-      entries.add(MapEntry('${m.group(1)}_$idx', e));
+      items.add(('${m.group(1)}_$idx', e.uri));
     }
-    entries.sort((a, b) => a.key.compareTo(b.key));
-    return entries.map((e) => e.value).toList();
+    items.sort((a, b) => a.$1.compareTo(b.$1));
+    return items.map((e) => e.$2).toList();
   }
-  
-  static Future<String?> loadFromFile(String path) async {
-    final f = File(path);
-    if (!await f.exists()) return null;
-    return await f.readAsString(encoding: utf8);
-  }
-
-  static Future<List<String>> listBackups(String dir) async =>
-    (await _sortedBackups(dir)).map((f) => f.path).toList();
 }

@@ -52,18 +52,28 @@ class HomeScreen extends StatelessWidget {
       body: 
         Column(
         children: [
-          if (prov.exportError != null)
+          if (prov.exportError != null || prov.needsFolder)
             MaterialBanner(
-              content: Text(prov.exportError!),
+              content: Text(
+                prov.exportError ?? 'Noch kein Sicherungsordner gewählt.',
+              ),
               leading: const Icon(Icons.warning_amber, color: Colors.orange),
               actions: [
                 TextButton(
                   onPressed: () async {
-                    if (await StorageService.requestPermission()) {
-                      await prov.exportNow();
+                    if (prov.folderProblem || prov.needsFolder) {
+                      await prov.chooseExportFolder();
+                    } else {
+                      try {
+                        await prov.exportNow();
+                      } catch (_) {}
                     }
                   },
-                  child: const Text('Berechtigen'),
+                  child: Text(
+                    prov.folderProblem || prov.needsFolder
+                        ? 'Ordner wählen'
+                        : 'Erneut versuchen',
+                  ),
                 ),
               ],
             ),

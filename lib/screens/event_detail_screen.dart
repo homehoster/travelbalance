@@ -713,7 +713,7 @@ class _BalancesTabState extends State<_BalancesTab> {
                 // "Von (Zahler)"
                 DropdownButtonFormField<String>(
                   key: ValueKey('from_$fromId'),
-                  value: fromId,
+                  initialValue: fromId,
                   decoration: const InputDecoration(
                     labelText: 'Von (Zahler)',
                     border: OutlineInputBorder(),
@@ -737,7 +737,7 @@ class _BalancesTabState extends State<_BalancesTab> {
                 // "An (Empfänger)"
                 DropdownButtonFormField<String>(
                   key: ValueKey('to_$toId'),
-                  value: toId,
+                  initialValue: toId,
                   decoration: const InputDecoration(
                     labelText: 'An (Empfänger)',
                     border: OutlineInputBorder(),

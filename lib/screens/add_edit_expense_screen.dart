@@ -339,7 +339,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                   Expanded(
                     flex: 2,
                     child: DropdownButtonFormField<String>(
-                      value: _currency,
+                      initialValue: _currency,
                       decoration: const InputDecoration(
                         labelText: 'Währung',
                         border: OutlineInputBorder(),
@@ -411,7 +411,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
 
               // Kategorie
               DropdownButtonFormField<String>(
-                value: _categories.contains(_category)
+                initialValue: _categories.contains(_category)
                     ? _category
                     : _categories.first,
                 decoration: const InputDecoration(
@@ -591,7 +591,7 @@ class _SectionCard extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold, color: color),
                 ),
                 const Spacer(),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
             const Divider(),

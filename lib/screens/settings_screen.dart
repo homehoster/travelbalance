@@ -1,15 +1,16 @@
 import 'dart:io';
-
+ 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
-
+ 
 import '../providers/app_provider.dart';
+import '../services/log.dart';
 import '../services/storage_service.dart';
-
+ 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
+ 
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
@@ -26,16 +27,39 @@ class SettingsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Aktueller Pfad:',
+                    'Aktueller Ordner:',
                     style: Theme.of(context).textTheme.labelMedium,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    prov.exportDirectory ?? 'Nicht gesetzt',
+                    prettyFolder(prov.exportDirectory),
                     style: const TextStyle(fontSize: 13),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (prov.folderProblem && prov.exportError != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber,
+                          color: Colors.orange,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            prov.exportError!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.deepOrange,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -43,23 +67,16 @@ class SettingsScreen extends StatelessWidget {
                       icon: const Icon(Icons.folder_open),
                       label: const Text('Speicherort wählen'),
                       onPressed: () async {
-                        if (!await StorageService.requestPermission()) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Bitte „Zugriff auf alle Dateien" erlauben'),
-                              ),
-                            );
-                          }
-                          return;
-                        }
-                        final dir = await FilePicker.getDirectoryPath(
-                          dialogTitle: 'Exportordner auswählen',
-                        );
-                        if (dir != null && context.mounted) {
-                          await prov.setExportDirectory(dir);
+                        final ok = await prov.chooseExportFolder();
+                        if (!context.mounted) return;
+                        if (ok) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Gespeichert: $dir')),
+                            SnackBar(
+                              content: Text(
+                                'Gespeichert: '
+                                '${StorageService.displayPath(prov.exportDirectory)}',
+                              ),
+                            ),
                           );
                         }
                       },
@@ -93,7 +110,8 @@ class SettingsScreen extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Exportiert nach ${prov.exportDirectory}',
+                              'Exportiert nach '
+                              '${StorageService.displayPath(prov.exportDirectory)}',
                             ),
                           ),
                         );
@@ -143,6 +161,31 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          _SectionHeader(title: 'Diagnose', icon: Icons.bug_report_outlined),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.share, color: Colors.deepPurple),
+              title: const Text('Log teilen'),
+              subtitle: const Text('Logdateien per Teilen-Menü senden'),
+              onTap: () async {
+                try {
+                  final shared = await LogService.share();
+                  if (!shared && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Noch keine Logs vorhanden')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Fehler beim Teilen: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
           _SectionHeader(title: 'Info', icon: Icons.info_outline),
           Card(
             child: Padding(
@@ -167,12 +210,12 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 }
-
+ 
 class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
   const _SectionHeader({required this.title, required this.icon});
-
+ 
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -193,3 +236,16 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
+
+String prettyFolder(String? uri) {
+  if (uri == null) return 'Nicht gesetzt';
+  if (!uri.startsWith('content://')) return uri; // normaler Dateipfad
+  final segs = Uri.parse(uri).pathSegments; // bereits dekodiert
+  final i = segs.indexOf('tree');
+  final id = (i >= 0 && i + 1 < segs.length) ? segs[i + 1] : uri;
+  final parts = id.split(':');
+  final volume = parts.first == 'primary' ? 'Interner Speicher' : parts.first;
+  final path = parts.length > 1 ? parts.sublist(1).join(':') : '';
+  return path.isEmpty ? volume : '$volume/$path';
+}
+ 
