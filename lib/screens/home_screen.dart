@@ -5,7 +5,6 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/event_menu_button.dart';
-import '../services/storage_service.dart';
 import '../utils/calculations.dart';
 import 'add_edit_event_screen.dart';
 import 'event_detail_screen.dart';
