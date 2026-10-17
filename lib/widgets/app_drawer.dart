@@ -6,6 +6,7 @@ import '../screens/event_detail_screen.dart';
 import '../screens/add_edit_event_screen.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/event_menu_button.dart';
+import '../widgets/app_version_text.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -189,8 +190,9 @@ class AppDrawer extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Text(
-              'TravelBalance v1.0',
+            child: AppVersionText(
+              showBuild: true,
+              prefix: 'TravelBalance v',
               style: TextStyle(color: Colors.grey[400], fontSize: 11),
             ),
           ),

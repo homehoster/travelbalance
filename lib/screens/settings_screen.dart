@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../services/log.dart';
 import '../services/storage_service.dart';
+import '../widgets/app_version_text.dart';
  
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -198,7 +199,7 @@ class SettingsScreen extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
-                  const Text('Version 1.0.0'),
+                  const AppVersionText(),
                   const SizedBox(height: 4),
                   const Text('Reisekosten einfach aufteilen.'),
                 ],
