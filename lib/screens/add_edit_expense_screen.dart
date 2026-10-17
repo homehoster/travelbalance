@@ -86,10 +86,10 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
             : ben.amount;
         _benCtrls[ben.personId]?.text = _toInput(orig);
       }
+      // Wer nicht Begünstigter ist, bleibt abgehakt-frei – in beiden Modi.
       for (final p in _participants) {
-        if (exp.beneficiaries.every((b) => b.personId != p.id)) {
-          _benEnabled[p.id] = _isEqualSplit;
-        }
+        _benEnabled[p.id] =
+            exp.beneficiaries.any((b) => b.personId == p.id);
       }
     } else {
       for (final p in _participants) {
@@ -701,8 +701,8 @@ class _SplitToggle extends StatelessWidget {
       children: [
         Expanded(
           child: _ToggleBtn(
-            label: 'Gleich aufteilen',
-            icon: Icons.people,
+            label: 'Automatisch',
+            icon: Icons.auto_awesome, // Icons.people,
             selected: isEqual,
             onTap: () => onChanged(true),
           ),
