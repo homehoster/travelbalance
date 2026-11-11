@@ -1,5 +1,5 @@
 name: travelbalance
-description: "A new Flutter project."
+description: "Reisekosten einfach aufteilen: Ausgaben erfassen, Währungen umrechnen, Salden berechnen und als PDF oder JSON exportieren."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,8 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0 
-#+1
+version: 1.0.0
 
 environment:
   sdk: ^3.13.4
@@ -56,7 +55,11 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/app_icon.png"
+
+  # iOS-specific configuration
   remove_alpha_ios: true
+  
+  # Android Adaptive Icon
   adaptive_icon_background: "#1565C0"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
   adaptive_icon_foreground_inset: 0
