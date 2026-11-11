@@ -97,10 +97,14 @@ void main() {
     Navigator.of(tester.element(find.byType(HomeScreen)))
         .push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
     await tester.pumpAndSettle();
+    final settingsScrollable = find.descendant(
+      of: find.byType(SettingsScreen),
+      matching: find.byType(Scrollable),
+    );
     await tester.scrollUntilVisible(
       find.text('Dunkel'),
       300,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: settingsScrollable,
     );
     await tester.tap(find.text('Dunkel'));
     await tester.pumpAndSettle();

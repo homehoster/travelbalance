@@ -20,7 +20,8 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SectionHeader(title: 'Speicherort', icon: Icons.folder_outlined),
+          _SectionHeader(title: 'Export & Import', icon: Icons.import_export),
+          _SubsectionHeader(title: 'Speicherort', icon: Icons.folder_outlined),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -88,83 +89,10 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _SectionHeader(title: 'Speicherung', icon: Icons.save_outlined),
-          Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.sync),
-                  title: const Text('Automatisch exportieren'),
-                  subtitle: const Text(
-                    'Änderungen in den ausgewählten Ordner schreiben. '
-                    'Lokales Speichern bleibt immer aktiv.',
-                  ),
-                  value: prov.automaticExport,
-                  onChanged: prov.setAutomaticExport,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.backup_outlined),
-                  title: const Text('Backups behalten'),
-                  subtitle: Text('${prov.backupCount} Backups'),
-                  trailing: DropdownButton<int>(
-                    value: prov.backupCount,
-                    items: List.generate(
-                      50,
-                      (index) => DropdownMenuItem(
-                        value: index + 1,
-                        child: Text('${index + 1}'),
-                      ),
-                    ),
-                    onChanged: (count) {
-                      if (count != null) prov.setBackupCount(count);
-                    },
-                  ),
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.tune),
-                  title: const Text('Einstellungen zusätzlich speichern'),
-                  subtitle: const Text(
-                    'Als separate JSON-Datei exportieren und importieren.',
-                  ),
-                  value: prov.saveSettingsFile,
-                  onChanged: prov.setSaveSettingsFile,
-                ),
-              ],
-            ),
+          _SubsectionHeader(
+            title: 'Export & Import',
+            icon: Icons.import_export,
           ),
-          const SizedBox(height: 16),
-          _SectionHeader(title: 'Darstellung', icon: Icons.palette_outlined),
-          Card(
-            child: RadioGroup<ThemeMode>(
-              groupValue: prov.themeMode,
-              onChanged: (mode) {
-                if (mode != null) prov.setThemeMode(mode);
-              },
-              child: const Column(
-                children: [
-                  RadioListTile<ThemeMode>(
-                    secondary: Icon(Icons.light_mode_outlined),
-                    title: Text('Hell'),
-                    value: ThemeMode.light,
-                  ),
-                  RadioListTile<ThemeMode>(
-                    secondary: Icon(Icons.dark_mode_outlined),
-                    title: Text('Dunkel'),
-                    value: ThemeMode.dark,
-                  ),
-                  RadioListTile<ThemeMode>(
-                    secondary: Icon(Icons.settings_brightness_outlined),
-                    title: Text('Wie Systemeinstellung'),
-                    value: ThemeMode.system,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _SectionHeader(title: 'Export & Import', icon: Icons.import_export),
           Card(
             child: Column(
               children: [
@@ -239,6 +167,81 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SubsectionHeader(title: 'Automatischer Export', icon: Icons.sync),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.sync),
+                  title: const Text('Automatisch exportieren'),
+                  subtitle: const Text(
+                    'Änderungen in den ausgewählten Ordner schreiben.',
+                  ),
+                  value: prov.automaticExport,
+                  onChanged: prov.setAutomaticExport,
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.backup_outlined),
+                  title: const Text('Backups behalten'),
+                  subtitle: Text('${prov.backupCount} Backups'),
+                  trailing: DropdownButton<int>(
+                    value: prov.backupCount,
+                    items: List.generate(
+                      50,
+                      (index) => DropdownMenuItem(
+                        value: index + 1,
+                        child: Text('${index + 1}'),
+                      ),
+                    ),
+                    onChanged: (count) {
+                      if (count != null) prov.setBackupCount(count);
+                    },
+                  ),
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  secondary: const Icon(Icons.tune),
+                  title: const Text('Einstellungen zusätzlich speichern'),
+                  subtitle: const Text(
+                    'Als separate JSON-Datei exportieren und importieren.',
+                  ),
+                  value: prov.saveSettingsFile,
+                  onChanged: prov.setSaveSettingsFile,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SectionHeader(title: 'Darstellung', icon: Icons.palette_outlined),
+          Card(
+            child: RadioGroup<ThemeMode>(
+              groupValue: prov.themeMode,
+              onChanged: (mode) {
+                if (mode != null) prov.setThemeMode(mode);
+              },
+              child: const Column(
+                children: [
+                  RadioListTile<ThemeMode>(
+                    secondary: Icon(Icons.light_mode_outlined),
+                    title: Text('Hell'),
+                    value: ThemeMode.light,
+                  ),
+                  RadioListTile<ThemeMode>(
+                    secondary: Icon(Icons.dark_mode_outlined),
+                    title: Text('Dunkel'),
+                    value: ThemeMode.dark,
+                  ),
+                  RadioListTile<ThemeMode>(
+                    secondary: Icon(Icons.settings_brightness_outlined),
+                    title: Text('Wie Systemeinstellung'),
+                    value: ThemeMode.system,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -326,6 +329,33 @@ class _SectionHeader extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubsectionHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  const _SubsectionHeader({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, bottom: 8, top: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.secondary),
+          const SizedBox(width: 6),
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.secondary,
             ),
           ),
         ],
