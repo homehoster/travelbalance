@@ -5,15 +5,58 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:travelbalance/main.dart';
 import 'package:travelbalance/providers/app_provider.dart';
 import 'package:travelbalance/screens/home_screen.dart';
+import 'package:travelbalance/screens/settings_screen.dart';
 
 void main() {
-  testWidgets('TravelBalance wird korrekt geladen', (WidgetTester tester) async {
+  testWidgets('Theme-Auswahl wird gespeichert und in der App angewendet', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final provider = AppProvider();
+    await provider.loadData();
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppProvider>.value(
+        value: provider,
+        child: const TravelBalanceApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.system,
+    );
+
+    Navigator.of(tester.element(find.byType(HomeScreen)))
+        .push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dunkel'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+
+    final restoredProvider = AppProvider();
+    await restoredProvider.loadData();
+    expect(restoredProvider.themeMode, ThemeMode.dark);
+    provider.dispose();
+    restoredProvider.dispose();
+  });
+
+  testWidgets('TravelBalance wird korrekt geladen', (
+    WidgetTester tester,
+  ) async {
     final provider = AppProvider();
     await provider.loadData();
 
@@ -29,4 +72,3 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
   });
 }
-

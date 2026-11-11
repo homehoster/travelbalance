@@ -1,17 +1,17 @@
 import 'dart:io';
- 
+
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
- 
+
 import '../providers/app_provider.dart';
 import '../services/log.dart';
 import '../services/storage_service.dart';
 import '../widgets/app_version_text.dart';
- 
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
- 
+
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
@@ -82,6 +82,35 @@ class SettingsScreen extends StatelessWidget {
                         }
                       },
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SectionHeader(title: 'Darstellung', icon: Icons.palette_outlined),
+          Card(
+            child: RadioGroup<ThemeMode>(
+              groupValue: prov.themeMode,
+              onChanged: (mode) {
+                if (mode != null) prov.setThemeMode(mode);
+              },
+              child: const Column(
+                children: [
+                  RadioListTile<ThemeMode>(
+                    secondary: Icon(Icons.light_mode_outlined),
+                    title: Text('Hell'),
+                    value: ThemeMode.light,
+                  ),
+                  RadioListTile<ThemeMode>(
+                    secondary: Icon(Icons.dark_mode_outlined),
+                    title: Text('Dunkel'),
+                    value: ThemeMode.dark,
+                  ),
+                  RadioListTile<ThemeMode>(
+                    secondary: Icon(Icons.settings_brightness_outlined),
+                    title: Text('Wie Systemeinstellung'),
+                    value: ThemeMode.system,
                   ),
                 ],
               ),
@@ -173,7 +202,9 @@ class SettingsScreen extends StatelessWidget {
                   final shared = await LogService.share();
                   if (!shared && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Noch keine Logs vorhanden')),
+                      const SnackBar(
+                        content: Text('Noch keine Logs vorhanden'),
+                      ),
                     );
                   }
                 } catch (e) {
@@ -211,12 +242,12 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 }
- 
+
 class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
   const _SectionHeader({required this.title, required this.icon});
- 
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -249,4 +280,3 @@ String prettyFolder(String? uri) {
   final path = parts.length > 1 ? parts.sublist(1).join(':') : '';
   return path.isEmpty ? volume : '$volume/$path';
 }
- 
