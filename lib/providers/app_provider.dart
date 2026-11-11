@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
+import '../services/log.dart';
 import '../services/storage_service.dart';
 import '../utils/messenger.dart';
 
@@ -29,6 +30,14 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   EventSortMode sortMode = EventSortMode.dateDesc;
   static const _prefThemeMode = 'themeMode';
   ThemeMode themeMode = ThemeMode.system;
+  static const _prefAutomaticExport = 'automaticExport';
+  bool automaticExport = false;
+  static const _prefWriteLogFiles = 'writeLogFiles';
+  bool writeLogFiles = false;
+  static const _prefBackupCount = 'backupCount';
+  int backupCount = 5;
+  static const _prefSaveSettingsFile = 'saveSettingsFile';
+  bool saveSettingsFile = false;
 
   static const _prefExportDir = 'exportDirectory';
   static const _prefData = 'travelbalance_data';
@@ -68,6 +77,14 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
         (mode) => mode.name == savedThemeMode,
         orElse: () => ThemeMode.system,
       );
+      automaticExport = prefs.getBool(_prefAutomaticExport) ?? false;
+      writeLogFiles = prefs.getBool(_prefWriteLogFiles) ?? false;
+      final savedBackupCount = prefs.getInt(_prefBackupCount) ?? 5;
+      backupCount = savedBackupCount >= 1 && savedBackupCount <= 50
+          ? savedBackupCount
+          : 5;
+      saveSettingsFile = prefs.getBool(_prefSaveSettingsFile) ?? false;
+      LogService.setEnabled(writeLogFiles);
       final raw = prefs.getString(_prefData);
       if (raw != null) {
         final list = jsonDecode(raw) as List;
@@ -106,32 +123,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     final json = jsonEncode(events.map((e) => e.toJson()).toList());
     await prefs.setString(_prefData, json);
-    if (export && exportDirectory != null) {
-      try {
-        await StorageService.rotateAndSave(exportDirectory!, json);
-        exportError = null;
-        folderProblem = false;
-      } catch (e) {
-        folderProblem = e is StorageFolderException;
-        exportError = e.toString();
-        debugPrint('Export error: $e');
-        messengerKey.currentState
-          ?..clearSnackBars()
-          ..showSnackBar(
-            SnackBar(
-              content: Text('Export fehlgeschlagen: $exportError'),
-              backgroundColor: Colors.red[700],
-              duration: const Duration(seconds: 8),
-              action: folderProblem
-                  ? SnackBarAction(
-                      label: 'Ordner wählen',
-                      textColor: Colors.white,
-                      onPressed: () => chooseExportFolder(),
-                    )
-                  : null,
-            ),
-          );
-      }
+    if (export && automaticExport && exportDirectory != null) {
+      await _exportToFolder();
     }
     notifyListeners();
   }
@@ -140,7 +133,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (exportDirectory == null) {
       throw Exception('Kein Sicherungsordner gewählt');
     }
-    await _persist(export: true);
+    await _persist(export: false);
+    await _exportToFolder();
     if (exportError != null) throw Exception(exportError);
   }
 
@@ -159,8 +153,117 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     final dir = await StorageService.pickFolder();
     if (dir == null) return false;
     await setExportDirectory(dir);
-    await _persist(export: true);
+    if (automaticExport) await _persist(export: true);
     return exportError == null;
+  }
+
+  Future<void> _exportToFolder() async {
+    final dir = exportDirectory;
+    if (dir == null) return;
+    try {
+      final json = jsonEncode(events.map((e) => e.toJson()).toList());
+      await StorageService.rotateAndSave(dir, json, maxBackups: backupCount);
+      if (saveSettingsFile) {
+        await StorageService.saveSettings(dir, jsonEncode(_settingsJson));
+      }
+      exportError = null;
+      folderProblem = false;
+    } catch (e) {
+      folderProblem = e is StorageFolderException;
+      exportError = e.toString();
+      debugPrint('Export error: $e');
+      messengerKey.currentState
+        ?..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Export fehlgeschlagen: $exportError'),
+            backgroundColor: Colors.red[700],
+            duration: const Duration(seconds: 8),
+            action: folderProblem
+                ? SnackBarAction(
+                    label: 'Ordner wählen',
+                    textColor: Colors.white,
+                    onPressed: () => chooseExportFolder(),
+                  )
+                : null,
+          ),
+        );
+    }
+  }
+
+  Map<String, Object> get _settingsJson => {
+    'type': 'travelbalance_settings',
+    'version': 1,
+    'themeMode': themeMode.name,
+    'sortMode': sortMode.name,
+    'automaticExport': automaticExport,
+    'writeLogFiles': writeLogFiles,
+    'backupCount': backupCount,
+    'saveSettingsFile': saveSettingsFile,
+  };
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefThemeMode, themeMode.name);
+    await prefs.setString(_prefSort, sortMode.name);
+    await prefs.setBool(_prefAutomaticExport, automaticExport);
+    await prefs.setBool(_prefWriteLogFiles, writeLogFiles);
+    await prefs.setInt(_prefBackupCount, backupCount);
+    await prefs.setBool(_prefSaveSettingsFile, saveSettingsFile);
+    if (automaticExport && saveSettingsFile && exportDirectory != null) {
+      await _saveSettingsFileToFolder();
+    }
+    notifyListeners();
+  }
+
+  Future<void> _saveSettingsFileToFolder() async {
+    final dir = exportDirectory;
+    if (dir == null) return;
+    try {
+      await StorageService.saveSettings(dir, jsonEncode(_settingsJson));
+      exportError = null;
+      folderProblem = false;
+    } catch (e) {
+      folderProblem = e is StorageFolderException;
+      exportError = e.toString();
+      debugPrint('Settings export error: $e');
+      messengerKey.currentState
+        ?..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Einstellungen konnten nicht gespeichert werden: $e'),
+            backgroundColor: Colors.red[700],
+            duration: const Duration(seconds: 8),
+          ),
+        );
+    }
+  }
+
+  Future<void> setAutomaticExport(bool enabled) async {
+    automaticExport = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefAutomaticExport, enabled);
+    notifyListeners();
+    if (enabled && exportDirectory != null) await _persist(export: true);
+  }
+
+  Future<void> setWriteLogFiles(bool enabled) async {
+    writeLogFiles = enabled;
+    LogService.setEnabled(enabled);
+    await _saveSettings();
+  }
+
+  Future<void> setBackupCount(int count) async {
+    if (count < 1 || count > 50) {
+      throw ArgumentError.value(count, 'count', 'Must be 1-50');
+    }
+    backupCount = count;
+    await _saveSettings();
+  }
+
+  Future<void> setSaveSettingsFile(bool enabled) async {
+    saveSettingsFile = enabled;
+    await _saveSettings();
   }
 
   // ---- Events ----
@@ -231,31 +334,69 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   // ---- Import ----
   Future<bool> importFromJson(String jsonStr) async {
     try {
-      final list = jsonDecode(jsonStr) as List;
-      events = list
-          .map((e) => TravelEvent.fromJson(e as Map<String, dynamic>))
-          .toList();
-      await _persist(export: false);
-      return true;
+      final decoded = jsonDecode(jsonStr);
+      if (decoded is List) {
+        events = decoded
+            .map((e) => TravelEvent.fromJson(e as Map<String, dynamic>))
+            .toList();
+        await _persist(export: false);
+        return true;
+      }
+      if (decoded is Map<String, dynamic> &&
+          decoded['type'] == 'travelbalance_settings') {
+        return await _importSettings(decoded);
+      }
+      return false;
     } catch (e) {
       debugPrint('Import error: $e');
       return false;
     }
   }
 
+  Future<bool> _importSettings(Map<String, dynamic> json) async {
+    if (json['version'] != 1 ||
+        json['themeMode'] is! String ||
+        json['sortMode'] is! String ||
+        json['automaticExport'] is! bool ||
+        json['writeLogFiles'] is! bool ||
+        json['backupCount'] is! int ||
+        json['saveSettingsFile'] is! bool) {
+      return false;
+    }
+    final importedTheme = ThemeMode.values.where(
+      (mode) => mode.name == json['themeMode'],
+    );
+    final importedSort = EventSortMode.values.where(
+      (mode) => mode.name == json['sortMode'],
+    );
+    final importedBackupCount = json['backupCount'] as int;
+    if (importedTheme.isEmpty ||
+        importedSort.isEmpty ||
+        importedBackupCount < 1 ||
+        importedBackupCount > 50) {
+      return false;
+    }
+
+    themeMode = importedTheme.first;
+    sortMode = importedSort.first;
+    automaticExport = json['automaticExport'] as bool;
+    writeLogFiles = json['writeLogFiles'] as bool;
+    backupCount = importedBackupCount;
+    saveSettingsFile = json['saveSettingsFile'] as bool;
+    LogService.setEnabled(writeLogFiles);
+    await _saveSettings();
+    return true;
+  }
+
   // ---- Sort Mode ----
   Future<void> setSortMode(EventSortMode mode) async {
     sortMode = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefSort, mode.name);
-    notifyListeners();
+    await _saveSettings();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     themeMode = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefThemeMode, mode.name);
-    notifyListeners();
+    await _saveSettings();
   }
 
   List<TravelEvent> get sortedEvents {

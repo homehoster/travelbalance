@@ -88,6 +88,53 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          _SectionHeader(title: 'Speicherung', icon: Icons.save_outlined),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.sync),
+                  title: const Text('Automatisch exportieren'),
+                  subtitle: const Text(
+                    'Änderungen in den ausgewählten Ordner schreiben. '
+                    'Lokales Speichern bleibt immer aktiv.',
+                  ),
+                  value: prov.automaticExport,
+                  onChanged: prov.setAutomaticExport,
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.backup_outlined),
+                  title: const Text('Backups behalten'),
+                  subtitle: Text('${prov.backupCount} Backups'),
+                  trailing: DropdownButton<int>(
+                    value: prov.backupCount,
+                    items: List.generate(
+                      50,
+                      (index) => DropdownMenuItem(
+                        value: index + 1,
+                        child: Text('${index + 1}'),
+                      ),
+                    ),
+                    onChanged: (count) {
+                      if (count != null) prov.setBackupCount(count);
+                    },
+                  ),
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  secondary: const Icon(Icons.tune),
+                  title: const Text('Einstellungen zusätzlich speichern'),
+                  subtitle: const Text(
+                    'Als separate JSON-Datei exportieren und importieren.',
+                  ),
+                  value: prov.saveSettingsFile,
+                  onChanged: prov.setSaveSettingsFile,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           _SectionHeader(title: 'Darstellung', icon: Icons.palette_outlined),
           Card(
             child: RadioGroup<ThemeMode>(
@@ -124,7 +171,9 @@ class SettingsScreen extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.upload_file, color: Colors.blue),
                   title: const Text('Jetzt exportieren'),
-                  subtitle: const Text('Speichert alle Reisen als JSON'),
+                  subtitle: const Text(
+                    'Speichert Reisen und optional Einstellungen als JSON',
+                  ),
                   onTap: () async {
                     if (prov.exportDirectory == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -162,7 +211,9 @@ class SettingsScreen extends StatelessWidget {
                     color: Colors.green,
                   ),
                   title: const Text('JSON importieren'),
-                  subtitle: const Text('Daten aus JSON-Datei laden'),
+                  subtitle: const Text(
+                    'Reisen oder Einstellungen aus JSON-Datei laden',
+                  ),
                   onTap: () async {
                     final result = await FilePicker.pickFiles(
                       type: FileType.custom,
@@ -193,28 +244,42 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _SectionHeader(title: 'Diagnose', icon: Icons.bug_report_outlined),
           Card(
-            child: ListTile(
-              leading: const Icon(Icons.share, color: Colors.deepPurple),
-              title: const Text('Log teilen'),
-              subtitle: const Text('Logdateien per Teilen-Menü senden'),
-              onTap: () async {
-                try {
-                  final shared = await LogService.share();
-                  if (!shared && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Noch keine Logs vorhanden'),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Fehler beim Teilen: $e')),
-                    );
-                  }
-                }
-              },
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.description_outlined),
+                  title: const Text('Log-Dateien schreiben'),
+                  subtitle: const Text(
+                    'Protokolle nur speichern, wenn diese Option aktiv ist.',
+                  ),
+                  value: prov.writeLogFiles,
+                  onChanged: prov.setWriteLogFiles,
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.share, color: Colors.deepPurple),
+                  title: const Text('Log teilen'),
+                  subtitle: const Text('Vorhandene Logdateien teilen'),
+                  onTap: () async {
+                    try {
+                      final shared = await LogService.share();
+                      if (!shared && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Noch keine Logs vorhanden'),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Fehler beim Teilen: $e')),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
