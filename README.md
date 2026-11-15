@@ -1,4 +1,4 @@
-# 🧳 TravelBalance
+# <img src="assets/icon/app_icon.png" alt="" width="40" align="absmiddle"> TravelBalance
 
 **Reisekosten einfach aufteilen – ohne Zettelwirtschaft und ohne Streit.**
 
